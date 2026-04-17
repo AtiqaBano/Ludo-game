@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Select Players</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg">
+
+<div class="container">
+  <h1 class="title">Select Players</h1>
+
+  <button class="btn green" onclick="startGame(2)">2 Players</button>
+  <button class="btn yellow" onclick="startGame(4)">4 Players</button>
+</div>
+
+<script>
+function startGame(players) {
+  localStorage.setItem("players", players);
+  window.location.href = "board.html";
+}
+</script>
+
+</body>
+</html>

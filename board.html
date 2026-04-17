@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ludo Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1 class="title">LUDO PRO</h1>
+    <div id="player-turn" style="color: red; font-weight: bold;">RED'S TURN</div>
+
+    <div class="board-container">
+        <img src="ludo.png" class="board">
+
+        <div id="red-1" class="token red-token" onclick="handleTokenClick('red', 1)" style="left: 70px; top: 70px;"></div>
+        <div id="red-2" class="token red-token" onclick="handleTokenClick('red', 2)" style="left: 115px; top: 70px;"></div>
+        <div id="red-3" class="token red-token" onclick="handleTokenClick('red', 3)" style="left: 70px; top: 115px;"></div>
+        <div id="red-4" class="token red-token" onclick="handleTokenClick('red', 4)" style="left: 115px; top: 115px;"></div>
+
+        <div id="blue-1" class="token blue-token" onclick="handleTokenClick('blue', 1)" style="left: 70px; top: 385px;"></div>
+        <div id="blue-2" class="token blue-token" onclick="handleTokenClick('blue', 2)" style="left: 115px; top: 385px;"></div>
+        <div id="blue-3" class="token blue-token" onclick="handleTokenClick('blue', 3)" style="left: 70px; top: 430px;"></div>
+        <div id="blue-4" class="token blue-token" onclick="handleTokenClick('blue', 4)" style="left: 115px; top: 430px;"></div>
+    </div>
+
+    <div class="dice-section">
+        <span id="dice-display">⚀</span>
+        <button class="btn-roll" id="roll-btn" onclick="rollDice()">ROLL DICE</button>
+    </div>
+</div>
+
+<script>
+let lastRoll = 0;
+let currentPlayer = 'red';
+let canMove = false;
+
+// -1 means in home, 0+ means on track
+const tokenStates = {
+    red: { 1: -1, 2: -1, 3: -1, 4: -1 },
+    blue: { 1: -1, 2: -1, 3: -1, 4: -1 }
+};
+
+const homeCoords = {
+    'red-1': {x: 70, y: 70}, 'red-2': {x: 115, y: 70}, 'red-3': {x: 70, y: 115}, 'red-4': {x: 115, y: 115},
+    'blue-1': {x: 70, y: 385}, 'blue-2': {x: 115, y: 385}, 'blue-3': {x: 70, y: 430}, 'blue-4': {x: 115, y: 430}
+};
+
+// Precise coordinates for 500x500 board
+const commonPath = [
+    {x: 45, y: 215}, {x: 78, y: 215}, {x: 112, y: 215}, {x: 145, y: 215}, {x: 178, y: 215},
+    {x: 215, y: 178}, {x: 215, y: 145}, {x: 215, y: 112}, {x: 215, y: 78}, {x: 215, y: 45}, {x: 215, y: 15},
+    {x: 250, y: 15}, {x: 285, y: 15}, {x: 285, y: 45}, {x: 285, y: 78}, {x: 285, y: 112}, {x: 285, y: 145},
+    {x: 285, y: 178}, {x: 322, y: 215}, {x: 355, y: 215}, {x: 388, y: 215}, {x: 422, y: 215}, {x: 455, y: 215},
+    {x: 485, y: 215}, {x: 485, y: 250}, {x: 485, y: 285}, {x: 455, y: 285}, {x: 422, y: 285}, {x: 388, y: 285},
+    {x: 355, y: 285}, {x: 322, y: 285}, {x: 285, y: 322}, {x: 285, y: 355}, {x: 285, y: 388}, {x: 285, y: 422},
+    {x: 285, y: 455}, {x: 285, y: 485}, {x: 250, y: 485}, {x: 215, y: 485}, {x: 215, y: 455}, {x: 215, y: 422},
+    {x: 215, y: 388}, {x: 215, y: 355}, {x: 215, y: 322}, {x: 178, y: 285}, {x: 145, y: 285}, {x: 112, y: 285},
+    {x: 78, y: 285}, {x: 45, y: 285}, {x: 15, y: 285}, {x: 15, y: 250}, {x: 15, y: 215}
+];
+
+const homePaths = {
+    red: [
+        {x: 45, y: 250}, {x: 78, y: 250}, {x: 112, y: 250}, {x: 145, y: 250}, {x: 178, y: 250}, {x: 215, y: 250}
+    ],
+    blue: [
+        {x: 250, y: 455}, {x: 250, y: 422}, {x: 250, y: 388}, {x: 250, y: 355}, {x: 250, y: 322}, {x: 250, y: 285}
+    ]
+};
+function rollDice() {
+    if (canMove) return;
+    lastRoll = Math.floor(Math.random() * 6) + 1;
+    const diceFaces = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+    document.getElementById("dice-display").innerHTML = diceFaces[lastRoll - 1];
+
+    // Check if player can move
+    let hasMove = false;
+    for (let i = 1; i <= 4; i++) {
+        if (tokenStates[currentPlayer][i] >= 0 || lastRoll === 6) hasMove = true;
+    }
+
+    if (!hasMove) {
+        setTimeout(switchPlayer, 800);
+    } else {
+        canMove = true;
+        document.getElementById("roll-btn").disabled = true;
+    }
+}
+
+function checkCapture(mover, position) {
+    let opponent = (mover === 'red') ? 'blue' : 'red';
+    
+    // Star wale safe zones (In boxes par goti nahi maregi)
+    const safeIndices = [0, 13, 26, 39]; 
+    
+    // Board par mover aur opponent ki asli location calculate karna
+    let moverIdx = (mover === 'blue') ? (position + 39) % 52 : position;
+
+    for (let i = 1; i <= 4; i++) {
+        let oppState = tokenStates[opponent][i];
+        
+        if (oppState >= 0) {
+            let oppIdx = (opponent === 'blue') ? (oppState + 39) % 52 : oppState;
+            
+            // Agar dono ek hi jagah hain aur safe zone nahi hai
+            if (moverIdx === oppIdx && !safeIndices.includes(moverIdx)) {
+                tokenStates[opponent][i] = -1; // Goti pit gayi, wapas ghar bhejo
+                console.log(opponent + " ki goti pit gayi!");
+            }
+        }
+    }
+}
+function handleTokenClick(player, id) {
+    if (!canMove || player !== currentPlayer) return;
+    let state = tokenStates[player][id];
+    // handleTokenClick ke andar jahan move logic hai:
+let nextState = state + lastRoll;
+
+if (nextState > 57) { // 51 path + 6 ghar ke steps = 57 max
+    console.log("Dice number zyada hai, goti andar nahi ja sakti");
+    return; // Move skip ho jayegi
+}
+
+tokenStates[player][id] = nextState;
+
+    if (state === -1 && lastRoll === 6) {
+        tokenStates[player][id] = 0;
+        finishTurn();
+    } else if (state >= 0) {
+        tokenStates[player][id] = (state + lastRoll) % 52;
+        checkCapture(player, nextState);
+        finishTurn();
+    }
+}
+
+function finishTurn() {
+    updateUI();
+    canMove = false;
+    document.getElementById("roll-btn").disabled = false;
+    if (lastRoll !== 6) switchPlayer();
+}
+
+// function updateUI() {
+//     for (let p of ['red', 'blue']) {
+//         for (let i = 1; i <= 4; i++) {
+//             const el = document.getElementById(`${p}-${i}`);
+//             const state = tokenStates[p][i];
+            
+//             if (state === -1) {
+//                 el.style.left = homeCoords[`${p}-${i}`].x + "px";
+//                 el.style.top = homeCoords[`${p}-${i}`].y + "px";
+//             } else {
+//                 let idx;
+//                 if (p === 'blue') {
+//                     idx = (state + 39) % 52; 
+//                 } else {
+//                     idx = state % 52;
+//                 }
+                
+//                 el.style.left = commonPath[idx].x + "px";
+//                 el.style.top = commonPath[idx].y + "px";
+//             }
+//         }
+//     }
+// }
+
+function updateUI() {
+    for (let p of ['red', 'blue']) {
+        for (let i = 1; i <= 4; i++) {
+            const el = document.getElementById(`${p}-${i}`);
+            const state = tokenStates[p][i];
+            
+            if (state === -1) {
+                el.style.left = homeCoords[`${p}-${i}`].x + "px";
+                el.style.top = homeCoords[`${p}-${i}`].y + "px";
+            } 
+            // AGAR GOTI 51 SE AGAY NIKAL GAYI HAI (Home Path)
+            else if (state > 51) {
+                let homeIdx = state - 52; // 52 pehla step hoga ghar ka
+                if (homeIdx < homePaths[p].length) {
+                    el.style.left = homePaths[p][homeIdx].x + "px";
+                    el.style.top = homePaths[p][homeIdx].y + "px";
+                } else {
+                    // GOTI JEET GAYI
+                    el.style.display = 'none'; 
+                    // Yahan blast wala code dal sakti hain
+                }
+            } 
+            else {
+                let idx = (p === 'blue') ? (state + 39) % 52 : state;
+                el.style.left = commonPath[idx].x + "px";
+                el.style.top = commonPath[idx].y + "px";
+            }
+        }
+    }
+}
+function switchPlayer() {
+    currentPlayer = (currentPlayer === 'red') ? 'blue' : 'red';
+    const turnEl = document.getElementById("player-turn");
+    turnEl.innerHTML = `${currentPlayer.toUpperCase()}'S TURN`;
+    turnEl.style.color = (currentPlayer === 'red') ? 'red' : '#3498db';
+}
+</script>
+</body>
+</html>
