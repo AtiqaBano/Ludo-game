@@ -3,7 +3,8 @@ body, html {
     padding: 0;
     height: 100%;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #1a1a2e; /* Dark background */
+    background-image: url("bg.jpg.jpeg");
+    
 }
 
 .container {
